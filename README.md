@@ -1,4 +1,4 @@
-# Plogins Followup for WooCommerce
+# Sekvo for WooCommerce
 
 - **Plugin page:** https://plogins.com/sekvo/
 - **Documentation:** https://plogins.com/sekvo/docs/
