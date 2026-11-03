@@ -42,17 +42,11 @@ defined('ABSPATH') || exit;
  * step's queue records nothing and the next one starts at the top, which is
  * what offers an order held back earlier another chance.
  *
- * All of that assumes High-Performance Order Storage. On the legacy posts
- * table wc_get_orders drops 'meta_query' (WC_Data_Store_WP::get_wp_query_args
- * skips the key, and WooCommerce says so through wc_doing_it_wrong), so both
- * meta filters below are no-ops there and every query returns plain due
- * orders, already-sent ones included. Nothing is mailed twice, because the
- * claim is re-read per order in deliver(), and nothing is lost. The cost is
- * latency: the paging has to walk the shop's history, about 800 orders a run,
- * before it reaches the orders that are actually due. Measured against the
- * fake store in tests/: 3,000 already-sent orders plus one due order mails the
- * due one on the fourth run, 30,000 on the thirty-eighth. Enabling HPOS
- * removes it.
+ * Both meta filters use the top-level meta_key/meta_value/meta_compare args,
+ * not 'meta_query': the posts order datastore drops 'meta_query' (WooCommerce
+ * 9.2+, wc_doing_it_wrong), so up to 1.1.4 every query on a shop without HPOS
+ * returned already-sent orders too and a due order behind 30,000 sent ones was
+ * mailed on the thirty-eighth run. Both datastores honour the top-level args.
  */
 final class Scheduler implements HasHooks
 {
@@ -270,13 +264,8 @@ final class Scheduler implements HasHooks
         // cannot pile up the way unclaimed orders can: every path out of a
         // claim either finishes it or drops it, so this set drains itself.
         $claimed = $this->query(array_merge($due, [
-            // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- an equality match on an indexed meta key, bounded by status, date and the batch limit.
-            'meta_query' => [
-                [
-                    'key'   => $metaKey,
-                    'value' => self::CLAIM_PENDING,
-                ],
-            ],
+            'meta_key'   => $metaKey, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- an equality match on an indexed meta key, bounded by status, date and the batch limit.
+            'meta_value' => self::CLAIM_PENDING, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- see meta_key.
             'limit' => self::BATCH_LIMIT,
         ]));
 
@@ -294,13 +283,8 @@ final class Scheduler implements HasHooks
             $limit = min(self::BATCH_LIMIT - $sent, self::SCAN_LIMIT - $read);
 
             $page = $this->query(array_merge($due, [
-                // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- bounded by status + date + the page limit; the "not sent" flag must be queried.
-                'meta_query' => [
-                    [
-                        'key'     => $metaKey,
-                        'compare' => 'NOT EXISTS',
-                    ],
-                ],
+                'meta_key'     => $metaKey, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- bounded by status + date + the page limit; the "not sent" flag must be queried.
+                'meta_compare' => 'NOT EXISTS',
                 'limit'  => $limit,
                 'offset' => $offset,
             ]));

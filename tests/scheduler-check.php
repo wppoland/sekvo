@@ -216,6 +216,13 @@ namespace {
             if (isset($args['meta_query']) && ! meta_matches($args['meta_query'], $order)) {
                 continue;
             }
+            if (isset($args['meta_key']) && ! meta_matches([[
+                'key'     => $args['meta_key'],
+                'value'   => $args['meta_value'] ?? '',
+                'compare' => $args['meta_compare'] ?? '=',
+            ]], $order)) {
+                continue;
+            }
             $out[] = $order;
         }
 
