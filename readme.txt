@@ -120,7 +120,7 @@ Yes. This plugin is compatible with WordPress Multisite. Network activate it or 
 
 == Screenshots ==
 
-1. The Follow-ups settings screen: enable each email type and edit its trigger status, delay and templates.
+1. Settings under WooCommerce > Follow-ups: the sender and the thank-you email with its trigger and delay.
 
 == External Services ==
 
